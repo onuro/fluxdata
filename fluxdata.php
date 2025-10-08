@@ -1,21 +1,25 @@
 <?php
 /**
- * Plugin Name:       Fluxdata
- * Description:       Example block scaffolded with Create Block tool.
+ * Plugin Name:       FluxData
+ * Description:       Display Flux network data in your WordPress site.
+ * Requires at least: 6.6
+ * Requires PHP:      7.2
  * Version:           0.1.0
- * Requires at least: 6.7
- * Requires PHP:      7.4
  * Author:            The WordPress Contributors
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       fluxdata
  *
- * @package Fluxdata
+ * @package FluxData
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
+
+// Include Flux API functions
+require_once plugin_dir_path( __FILE__ ) . 'includes/flux-api-functions.php';
+
 /**
  * Registers the block using a `blocks-manifest.php` file, which improves the performance of block type registration.
  * Behind the scenes, it also registers all assets so they can be enqueued

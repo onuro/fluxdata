@@ -1,15 +1,37 @@
 {
 	"$schema": "https://schemas.wp.org/trunk/block.json",
 	"apiVersion": 3,
-	"name": "fluxdata/bokdata",
+	"name": "fluxdata/fluxinfo",
 	"version": "0.1.0",
-	"title": "Bokdata",
+	"title": "Flux Info",
 	"category": "widgets",
-	"icon": "smiley",
-	"description": "Example block scaffolded with Create Block tool.",
+	"icon": "chart-area",
+	"description": "Display Flux network statistics including node count and running applications.",
 	"example": {},
+	"attributes": {
+		"dataType": {
+			"type": "string",
+			"default": "nodecount"
+		},
+		"humanReadable": {
+			"type": "boolean",
+			"default": false
+		}
+	},
 	"supports": {
-		"html": false
+		"html": false,
+		"color": {
+			"heading": true,
+			"gradients": true
+		},
+		"typography": {
+			"fontSize": true,
+			"lineHeight": true
+		},
+		"spacing": {
+			"margin": true,
+			"padding": true
+		}
 	},
 	"textdomain": "fluxdata",
 	"editorScript": "file:./index.js",

@@ -5,8 +5,30 @@
  * Replace them with your own styles or remove the file completely.
  */
 
-.wp-block-fluxdata-fluxdata {
-	background-color: #21759b;
-	color: #fff;
-	padding: 2px;
+.wp-block-fluxdata-fluxinfo {
+	display: inline-block;
+	font-weight: 600;
+	font-family: var(--wp--preset--font-family--gilroy, inherit);
+
+	.fluxdata-value {
+		font-size: inherit;
+		font-weight: inherit;
+		margin: 0;
+		line-height: inherit;
+	}
+
+	.fluxdata-error {
+		color: #e74c3c;
+		font-weight: 500;
+		padding: 10px;
+		background-color: #fdf2f2;
+		border: 1px solid #f5c6cb;
+		border-radius: 4px;
+	}
+
+	.fluxdata-loading {
+		color: #7f8c8d;
+		font-style: italic;
+		font-size: 1.1em;
+	}
 }
