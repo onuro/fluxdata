@@ -47,6 +47,9 @@ function fluxdata_format_ssd( $ssd_gb ) {
  * @return array|WP_Error
  */
 function fluxdata_get_total_ssd() {
+	// Increase memory limit for processing large API response
+	ini_set( 'memory_limit', '512M' );
+	
 	$cache_key = 'fluxdata_total_ssd';
 	$cached_data = get_transient( $cache_key );
 	
@@ -54,7 +57,7 @@ function fluxdata_get_total_ssd() {
 		return $cached_data;
 	}
 	
-	$response = wp_remote_get( 'https://stats.runonflux.io/fluxinfo?projection=tier,benchmark', array(
+	$response = wp_remote_get( 'https://stats.runonflux.io/fluxinfo', array(
 		'timeout' => 30,
 		'headers' => array(
 			'Accept' => 'application/json',
@@ -62,18 +65,27 @@ function fluxdata_get_total_ssd() {
 	) );
 	
 	if ( is_wp_error( $response ) ) {
-		return $response;
+		return new WP_Error( 'api_error', $response->get_error_message(), array( 'status' => 503 ) );
+	}
+	
+	$http_code = wp_remote_retrieve_response_code( $response );
+	if ( 200 !== $http_code ) {
+		return new WP_Error( 'api_error', sprintf( __( 'HTTP error: %d', 'fluxdata' ), $http_code ), array( 'status' => 503 ) );
 	}
 	
 	$body = wp_remote_retrieve_body( $response );
 	$data = json_decode( $body, true );
 	
+	if ( json_last_error() !== JSON_ERROR_NONE ) {
+		return new WP_Error( 'api_error', __( 'Invalid JSON response', 'fluxdata' ), array( 'status' => 503 ) );
+	}
+	
 	if ( ! $data || ! isset( $data['status'] ) || 'success' !== $data['status'] ) {
-		return new WP_Error( 'api_error', __( 'Failed to fetch total SSD data', 'fluxdata' ) );
+		return new WP_Error( 'api_error', __( 'Failed to fetch total SSD data', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
 	if ( ! isset( $data['data'] ) || ! is_array( $data['data'] ) ) {
-		return new WP_Error( 'api_error', __( 'Invalid total SSD data format', 'fluxdata' ) );
+		return new WP_Error( 'api_error', __( 'Invalid total SSD data format', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
 	// Initialize counters for each tier
@@ -115,7 +127,7 @@ function fluxdata_get_total_ssd() {
 	);
 	
 	// Cache for 10 minutes
-	set_transient( $cache_key, $result, 10 * MINUTE_IN_SECONDS );
+	set_transient( $cache_key, $result, 1 * MINUTE_IN_SECONDS );
 	
 	return $result;
 }
@@ -193,22 +205,22 @@ function fluxdata_get_node_count() {
 	) );
 	
 	if ( is_wp_error( $response ) ) {
-		return $response;
+		return new WP_Error( 'api_error', $response->get_error_message(), array( 'status' => 503 ) );
 	}
 	
 	$body = wp_remote_retrieve_body( $response );
 	$data = json_decode( $body, true );
 	
 	if ( ! $data || ! isset( $data['status'] ) || 'success' !== $data['status'] ) {
-		return new WP_Error( 'api_error', __( 'Failed to fetch node count data', 'fluxdata' ) );
+		return new WP_Error( 'api_error', __( 'Failed to fetch node count data', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
 	if ( ! isset( $data['data']['total'] ) || ! is_numeric( $data['data']['total'] ) ) {
-		return new WP_Error( 'api_error', __( 'Invalid node count data format', 'fluxdata' ) );
+		return new WP_Error( 'api_error', __( 'Invalid node count data format', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
 	// Cache for 5 minutes
-	set_transient( $cache_key, $data, 5 * MINUTE_IN_SECONDS );
+	set_transient( $cache_key, $data, 1 * MINUTE_IN_SECONDS );
 	
 	return $data;
 }
@@ -234,22 +246,22 @@ function fluxdata_get_running_apps_count() {
 	) );
 	
 	if ( is_wp_error( $response ) ) {
-		return $response;
+		return new WP_Error( 'api_error', $response->get_error_message(), array( 'status' => 503 ) );
 	}
 	
 	$body = wp_remote_retrieve_body( $response );
 	$data = json_decode( $body, true );
 	
 	if ( ! $data || ! isset( $data['status'] ) || 'success' !== $data['status'] ) {
-		return new WP_Error( 'api_error', __( 'Failed to fetch running apps data', 'fluxdata' ) );
+		return new WP_Error( 'api_error', __( 'Failed to fetch running apps data', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
 	if ( ! isset( $data['data'] ) || ! is_array( $data['data'] ) ) {
-		return new WP_Error( 'api_error', __( 'Invalid running apps data format', 'fluxdata' ) );
+		return new WP_Error( 'api_error', __( 'Invalid running apps data format', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
 	// Cache for 5 minutes
-	set_transient( $cache_key, $data, 5 * MINUTE_IN_SECONDS );
+	set_transient( $cache_key, $data, 1 * MINUTE_IN_SECONDS );
 	
 	return $data;
 }
@@ -261,6 +273,9 @@ function fluxdata_get_running_apps_count() {
  * @return array|WP_Error
  */
 function fluxdata_get_total_cores() {
+	// Increase memory limit for processing large API response
+	ini_set( 'memory_limit', '512M' );
+	
 	$cache_key = 'fluxdata_total_cores';
 	$cached_data = get_transient( $cache_key );
 	
@@ -268,7 +283,7 @@ function fluxdata_get_total_cores() {
 		return $cached_data;
 	}
 	
-	$response = wp_remote_get( 'https://stats.runonflux.io/fluxinfo?projection=tier,benchmark', array(
+	$response = wp_remote_get( 'https://stats.runonflux.io/fluxinfo', array(
 		'timeout' => 30,
 		'headers' => array(
 			'Accept' => 'application/json',
@@ -276,18 +291,27 @@ function fluxdata_get_total_cores() {
 	) );
 	
 	if ( is_wp_error( $response ) ) {
-		return $response;
+		return new WP_Error( 'api_error', $response->get_error_message(), array( 'status' => 503 ) );
+	}
+	
+	$http_code = wp_remote_retrieve_response_code( $response );
+	if ( 200 !== $http_code ) {
+		return new WP_Error( 'api_error', sprintf( __( 'HTTP error: %d', 'fluxdata' ), $http_code ), array( 'status' => 503 ) );
 	}
 	
 	$body = wp_remote_retrieve_body( $response );
 	$data = json_decode( $body, true );
 	
+	if ( json_last_error() !== JSON_ERROR_NONE ) {
+		return new WP_Error( 'api_error', __( 'Invalid JSON response', 'fluxdata' ), array( 'status' => 503 ) );
+	}
+	
 	if ( ! $data || ! isset( $data['status'] ) || 'success' !== $data['status'] ) {
-		return new WP_Error( 'api_error', __( 'Failed to fetch total cores data', 'fluxdata' ) );
+		return new WP_Error( 'api_error', __( 'Failed to fetch total cores data', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
 	if ( ! isset( $data['data'] ) || ! is_array( $data['data'] ) ) {
-		return new WP_Error( 'api_error', __( 'Invalid total cores data format', 'fluxdata' ) );
+		return new WP_Error( 'api_error', __( 'Invalid total cores data format', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
 	// Initialize counters for each tier
@@ -329,7 +353,7 @@ function fluxdata_get_total_cores() {
 	);
 	
 	// Cache for 10 minutes
-	set_transient( $cache_key, $result, 10 * MINUTE_IN_SECONDS );
+	set_transient( $cache_key, $result, 1 * MINUTE_IN_SECONDS );
 	
 	return $result;
 }
@@ -341,6 +365,9 @@ function fluxdata_get_total_cores() {
  * @return array|WP_Error
  */
 function fluxdata_get_total_ram() {
+	// Increase memory limit for processing large API response
+	ini_set( 'memory_limit', '512M' );
+	
 	$cache_key = 'fluxdata_total_ram';
 	$cached_data = get_transient( $cache_key );
 	
@@ -348,7 +375,7 @@ function fluxdata_get_total_ram() {
 		return $cached_data;
 	}
 	
-	$response = wp_remote_get( 'https://stats.runonflux.io/fluxinfo?projection=tier,benchmark', array(
+	$response = wp_remote_get( 'https://stats.runonflux.io/fluxinfo', array(
 		'timeout' => 30,
 		'headers' => array(
 			'Accept' => 'application/json',
@@ -356,18 +383,27 @@ function fluxdata_get_total_ram() {
 	) );
 	
 	if ( is_wp_error( $response ) ) {
-		return $response;
+		return new WP_Error( 'api_error', $response->get_error_message(), array( 'status' => 503 ) );
+	}
+	
+	$http_code = wp_remote_retrieve_response_code( $response );
+	if ( 200 !== $http_code ) {
+		return new WP_Error( 'api_error', sprintf( __( 'HTTP error: %d', 'fluxdata' ), $http_code ), array( 'status' => 503 ) );
 	}
 	
 	$body = wp_remote_retrieve_body( $response );
 	$data = json_decode( $body, true );
 	
+	if ( json_last_error() !== JSON_ERROR_NONE ) {
+		return new WP_Error( 'api_error', __( 'Invalid JSON response', 'fluxdata' ), array( 'status' => 503 ) );
+	}
+	
 	if ( ! $data || ! isset( $data['status'] ) || 'success' !== $data['status'] ) {
-		return new WP_Error( 'api_error', __( 'Failed to fetch total RAM data', 'fluxdata' ) );
+		return new WP_Error( 'api_error', __( 'Failed to fetch total RAM data', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
 	if ( ! isset( $data['data'] ) || ! is_array( $data['data'] ) ) {
-		return new WP_Error( 'api_error', __( 'Invalid total RAM data format', 'fluxdata' ) );
+		return new WP_Error( 'api_error', __( 'Invalid total RAM data format', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
 	// Initialize counters for each tier
@@ -409,7 +445,7 @@ function fluxdata_get_total_ram() {
 	);
 	
 	// Cache for 10 minutes
-	set_transient( $cache_key, $result, 10 * MINUTE_IN_SECONDS );
+	set_transient( $cache_key, $result, 1 * MINUTE_IN_SECONDS );
 	
 	return $result;
 }
