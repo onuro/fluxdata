@@ -127,7 +127,7 @@ function fluxdata_get_total_ssd() {
 	);
 	
 	// Cache for 10 minutes
-	set_transient( $cache_key, $result, 1 * MINUTE_IN_SECONDS );
+	set_transient( $cache_key, $result, 60 * MINUTE_IN_SECONDS );
 	
 	return $result;
 }
@@ -220,7 +220,7 @@ function fluxdata_get_node_count() {
 	}
 	
 	// Cache for 5 minutes
-	set_transient( $cache_key, $data, 1 * MINUTE_IN_SECONDS );
+	set_transient( $cache_key, $data, 60 * MINUTE_IN_SECONDS );
 	
 	return $data;
 }
@@ -260,8 +260,8 @@ function fluxdata_get_running_apps_count() {
 		return new WP_Error( 'api_error', __( 'Invalid running apps data format', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
-	// Cache for 5 minutes
-	set_transient( $cache_key, $data, 1 * MINUTE_IN_SECONDS );
+	// Cache for 10 minutes
+	set_transient( $cache_key, $data, 60 * MINUTE_IN_SECONDS );
 	
 	return $data;
 }
@@ -353,7 +353,7 @@ function fluxdata_get_total_cores() {
 	);
 	
 	// Cache for 10 minutes
-	set_transient( $cache_key, $result, 1 * MINUTE_IN_SECONDS );
+	set_transient( $cache_key, $result, 60 * MINUTE_IN_SECONDS );
 	
 	return $result;
 }
@@ -445,7 +445,7 @@ function fluxdata_get_total_ram() {
 	);
 	
 	// Cache for 10 minutes
-	set_transient( $cache_key, $result, 1 * MINUTE_IN_SECONDS );
+	set_transient( $cache_key, $result, 60 * MINUTE_IN_SECONDS );
 	
 	return $result;
 }

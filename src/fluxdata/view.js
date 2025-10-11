@@ -1,6 +1,6 @@
 /**
  * FluxData Block Frontend JavaScript
- * Handles async data fetching for better performance
+ * Uses WordPress AJAX with PHP formatting functions
  */
 
 document.addEventListener( 'DOMContentLoaded', function() {
@@ -10,6 +10,9 @@ document.addEventListener( 'DOMContentLoaded', function() {
 	if ( fluxDataBlocks.length === 0 ) {
 		return;
 	}
+
+	// Cache to avoid duplicate AJAX calls
+	const dataCache = {};
 	
 	// Process each block
 	fluxDataBlocks.forEach( function( block ) {
@@ -21,12 +24,28 @@ document.addEventListener( 'DOMContentLoaded', function() {
 			return;
 		}
 		
-		// Fetch data from REST API
-		fetchFluxData( dataType, humanReadable )
+		// Check cache first
+		const cacheKey = dataType + '_' + humanReadable;
+		if ( dataCache[cacheKey] ) {
+			valueElement.classList.remove( 'fluxdata-loading' );
+			valueElement.innerHTML = escapeHtml( dataCache[cacheKey] );
+			return;
+		}
+		
+		// Fetch data via WordPress AJAX
+		fetchFluxDataAjax( dataType, humanReadable )
 			.then( function( data ) {
-				// Update the display with real data
-				valueElement.classList.remove( 'fluxdata-loading' );
-				valueElement.innerHTML = escapeHtml( data );
+				// Cache the result
+				dataCache[cacheKey] = data;
+				
+				// Update all blocks with same data type
+				document.querySelectorAll( '.fluxdata-block[data-type="' + dataType + '"][data-human-readable="' + humanReadable + '"]' ).forEach( function( sameTypeBlock ) {
+					const sameValueElement = sameTypeBlock.querySelector( '.fluxdata-value' );
+					if ( sameValueElement ) {
+						sameValueElement.classList.remove( 'fluxdata-loading' );
+						sameValueElement.innerHTML = escapeHtml( data );
+					}
+				} );
 			} )
 			.catch( function( error ) {
 				// Handle errors gracefully
@@ -34,7 +53,7 @@ document.addEventListener( 'DOMContentLoaded', function() {
 				valueElement.classList.add( 'fluxdata-error' );
 				valueElement.innerHTML = 'Error loading data';
 				
-				// Log error for debugging (only in development)
+				// Log error for debugging
 				if ( window.console && window.console.error ) {
 					console.error( 'FluxData fetch error:', error );
 				}
@@ -43,23 +62,18 @@ document.addEventListener( 'DOMContentLoaded', function() {
 } );
 
 /**
- * Fetch data from FluxData REST API
+ * Fetch data via WordPress AJAX
  */
-function fetchFluxData( type, humanReadable ) {
-	const apiUrl = '/wp-json/fluxdata/v1/data/' + encodeURIComponent( type );
-	const params = new URLSearchParams();
+function fetchFluxDataAjax( type, humanReadable ) {
+	const formData = new FormData();
+	formData.append( 'action', 'fluxdata_get' );
+	formData.append( 'type', type );
+	formData.append( 'human_readable', humanReadable ? 'true' : 'false' );
+	formData.append( 'nonce', fluxdataAjax.nonce );
 	
-	if ( humanReadable ) {
-		params.append( 'human_readable', 'true' );
-	}
-	
-	const fullUrl = apiUrl + ( params.toString() ? '?' + params.toString() : '' );
-	
-	return fetch( fullUrl, {
-		method: 'GET',
-		headers: {
-			'Accept': 'application/json',
-		},
+	return fetch( fluxdataAjax.ajaxurl, {
+		method: 'POST',
+		body: formData,
 		credentials: 'same-origin'
 	} )
 	.then( function( response ) {
@@ -69,16 +83,15 @@ function fetchFluxData( type, humanReadable ) {
 		return response.json();
 	} )
 	.then( function( result ) {
-		if ( result.success && result.data ) {
-			return result.data;
-		} else {
-			throw new Error( 'Invalid API response' );
+		if ( ! result.success ) {
+			throw new Error( result.data || 'Unknown error' );
 		}
+		return result.data;
 	} );
 }
 
 /**
- * Simple HTML escape function for security
+ * Escape HTML to prevent XSS
  */
 function escapeHtml( text ) {
 	const div = document.createElement( 'div' );
