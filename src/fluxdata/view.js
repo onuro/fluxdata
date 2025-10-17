@@ -51,7 +51,7 @@ document.addEventListener( 'DOMContentLoaded', function() {
 				// Handle errors gracefully
 				valueElement.classList.remove( 'fluxdata-loading' );
 				valueElement.classList.add( 'fluxdata-error' );
-				valueElement.innerHTML = 'Error loading data';
+				valueElement.innerHTML = '!!';
 				
 				// Log error for debugging
 				if ( window.console && window.console.error ) {
