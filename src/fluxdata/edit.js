@@ -81,58 +81,62 @@ export default function Edit( { attributes, setAttributes } ) {
 		if ( ! isHumanReadable ) {
 			return ramGb.toLocaleString() + ' GB';
 		}
-		
+
 		// Convert GB to TB (1 TB = 1024 GB)
 		const ramTb = ramGb / 1024;
-		
+
 		if ( ramTb >= 1 ) {
 			const formatted = Math.round( ramTb * 10 ) / 10; // Round to 1 decimal place
-			return ( formatted === Math.floor( formatted ) ) ? Math.floor( formatted ) + ' TB' : formatted + ' TB';
+			return ( formatted === Math.floor( formatted ) ) ? Math.floor( formatted ) + 'TB' : formatted + 'TB';
 		}
-		
-		return ramGb.toLocaleString() + ' GB';
+
+		return ramGb.toLocaleString() + 'GB';
 	};
 
 	const formatSsd = ( ssdGb, isHumanReadable ) => {
 		if ( ! isHumanReadable ) {
 			return ssdGb.toLocaleString() + ' GB';
 		}
-		
+
 		// Convert GB to PB (1 PB = 1000 * 1000 GB) - using decimal conversion for storage
 		const ssdPb = ssdGb / ( 1000 * 1000 );
-		
+
 		if ( ssdPb >= 1 ) {
 			const formatted = Math.round( ssdPb * 10 ) / 10; // Round to 1 decimal place
-			return ( formatted === Math.floor( formatted ) ) ? Math.floor( formatted ) + ' PB' : formatted + ' PB';
+			return ( formatted === Math.floor( formatted ) ) ? Math.floor( formatted ) + 'PB' : formatted + 'PB';
 		}
-		
+
 		// Convert GB to TB (1 TB = 1000 GB) - using decimal conversion for storage
 		const ssdTb = ssdGb / 1000;
-		
+
 		if ( ssdTb >= 1 ) {
 			const formatted = Math.round( ssdTb * 10 ) / 10; // Round to 1 decimal place
-			return ( formatted === Math.floor( formatted ) ) ? Math.floor( formatted ) + ' TB' : formatted + ' TB';
+			return ( formatted === Math.floor( formatted ) ) ? Math.floor( formatted ) + 'TB' : formatted + 'TB';
 		}
-		
-		return ssdGb.toLocaleString() + ' GB';
+
+		return ssdGb.toLocaleString() + 'GB';
 	};
 
 	const getPreviewText = () => {
+		// Preview values based on tier defaults calculation:
+		// CUMULUS: ~4800 nodes × (4 cores, 8 GB RAM, 220 GB SSD)
+		// NIMBUS: ~1800 nodes × (8 cores, 32 GB RAM, 440 GB SSD)
+		// STRATUS: ~1600 nodes × (16 cores, 64 GB RAM, 880 GB SSD)
 		switch ( dataType ) {
 			case 'nodecount':
-				const nodeCount = 8491; // Updated to current realistic count
+				const nodeCount = 8200; // ~4800 + 1800 + 1600
 				return formatNumber( nodeCount, humanReadable );
 			case 'runningapps':
-				const appsCount = 1234;
+				const appsCount = 150;
 				return formatNumber( appsCount, humanReadable );
 			case 'totalcores':
-				const totalCores = 91370; // Based on Flux documentation
+				const totalCores = 59200; // (4800×4) + (1800×8) + (1600×16)
 				return formatNumber( totalCores, humanReadable );
 			case 'totalram':
-				const totalRam = 732160; // Estimated total RAM in GB based on Flux network
+				const totalRam = 198400; // (4800×8) + (1800×32) + (1600×64) GB
 				return formatRam( totalRam, humanReadable );
 			case 'totalssd':
-				const totalSsd = 7321600; // Estimated total SSD in GB based on Flux network (10x RAM estimate)
+				const totalSsd = 3256000; // (4800×220) + (1800×440) + (1600×880) GB
 				return formatSsd( totalSsd, humanReadable );
 			default:
 				return __( 'Data', 'fluxdata' );
