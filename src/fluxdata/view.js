@@ -48,10 +48,49 @@ document.addEventListener( 'DOMContentLoaded', function() {
 				} );
 			} )
 			.catch( function( error ) {
-				// Handle errors gracefully
-				valueElement.classList.remove( 'fluxdata-loading' );
-				valueElement.classList.add( 'fluxdata-error' );
-				valueElement.innerHTML = '!!';
+				// Log the original error
+				console.log( 'Primary API call failed:', error );
+				
+				// Try to get cached data directly from WordPress options
+				const formData = new FormData();
+				formData.append( 'action', 'fluxdata_get_cached' );
+				formData.append( 'type', dataType );
+				formData.append( 'human_readable', humanReadable ? 'true' : 'false' );
+				formData.append( 'nonce', fluxdataAjax.nonce );
+				
+				console.log( 'Attempting to fetch cached data for type:', dataType );
+				
+				fetch( fluxdataAjax.ajaxurl, {
+					method: 'POST',
+					body: formData,
+					credentials: 'same-origin'
+				} )
+				.then( function( response ) {
+					console.log( 'Cache response status:', response.status );
+					return response.json();
+				} )
+				.then( function( result ) {
+					console.log( 'Cache result:', result );
+					valueElement.classList.remove( 'fluxdata-loading' );
+					
+					if ( result.success && result.data ) {
+						// Show cached data instead of !!
+						console.log( 'Displaying cached data:', result.data );
+						valueElement.innerHTML = escapeHtml( result.data );
+					} else {
+						// Show hardcoded fallback instead of "No data available"
+						console.log( 'No cached data available, showing hardcoded fallback' );
+						valueElement.classList.add( 'fluxdata-error' );
+						valueElement.innerHTML = escapeHtml( getHardcodedFallback( dataType ) );
+					}
+				} )
+				.catch( function( fallbackError ) {
+					// Final fallback - show hardcoded values
+					console.log( 'Cache fetch failed:', fallbackError );
+					valueElement.classList.remove( 'fluxdata-loading' );
+					valueElement.classList.add( 'fluxdata-error' );
+					valueElement.innerHTML = escapeHtml( getHardcodedFallback( dataType ) );
+				} );
 				
 				// Log error for debugging
 				if ( window.console && window.console.error ) {
@@ -86,6 +125,7 @@ function fetchFluxDataAjax( type, humanReadable ) {
 		if ( ! result.success ) {
 			throw new Error( result.data || 'Unknown error' );
 		}
+		console.log( 'API result:', result );
 		return result.data;
 	} );
 }
@@ -97,4 +137,20 @@ function escapeHtml( text ) {
 	const div = document.createElement( 'div' );
 	div.textContent = text;
 	return div.innerHTML;
+}
+
+/**
+ * Get hardcoded fallback values for FluxData types
+ * @param {string} dataType - The type of data (nodecount, totalram, totalstorage)
+ * @return {string} Hardcoded fallback value
+ */
+function getHardcodedFallback( dataType ) {
+	const fallbacks = {
+		'totalcores': '71.9K',
+		'totalram': '187 TB', 
+		'totalssd': '5.1PB',
+		'nodecount': '7,678'
+	};
+	
+	return fallbacks[dataType] || 'N/A';
 }

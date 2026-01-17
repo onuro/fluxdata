@@ -4,7 +4,7 @@
  * Description:       Display Flux network data in your WordPress site.
  * Requires at least: 6.6
  * Requires PHP:      7.2
- * Version:           0.1.2
+ * Version:           0.1.6
  * Author:            Onur Oztaskiran
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -38,7 +38,13 @@ function fluxdata_ajax_handler() {
 		case 'nodecount':
 			$api_data = fluxdata_get_node_count();
 			if ( is_wp_error( $api_data ) ) {
-				wp_send_json_error( $api_data->get_error_message() );
+				// Try to get cached data directly from options on error
+				$cache_data = get_option( 'fluxdata_cache', array() );
+				if ( isset( $cache_data['node_count']['data'] ) ) {
+					$api_data = $cache_data['node_count']['data'];
+				} else {
+					wp_send_json_error( $api_data->get_error_message() );
+				}
 			}
 			if ( isset( $api_data['data']['total'] ) && is_numeric( $api_data['data']['total'] ) ) {
 				$value = $api_data['data']['total'];
@@ -49,7 +55,13 @@ function fluxdata_ajax_handler() {
 		case 'runningapps':
 			$api_data = fluxdata_get_running_apps_count();
 			if ( is_wp_error( $api_data ) ) {
-				wp_send_json_error( $api_data->get_error_message() );
+				// Try to get cached data directly from options on error
+				$cache_data = get_option( 'fluxdata_cache', array() );
+				if ( isset( $cache_data['running_apps']['data'] ) ) {
+					$api_data = $cache_data['running_apps']['data'];
+				} else {
+					wp_send_json_error( $api_data->get_error_message() );
+				}
 			}
 			if ( isset( $api_data['data'] ) && is_array( $api_data['data'] ) ) {
 				$value = count( $api_data['data'] );
@@ -60,7 +72,13 @@ function fluxdata_ajax_handler() {
 		case 'totalcores':
 			$api_data = fluxdata_get_total_cores();
 			if ( is_wp_error( $api_data ) ) {
-				wp_send_json_error( $api_data->get_error_message() );
+				// Try to get cached data directly from options on error
+				$cache_data = get_option( 'fluxdata_cache', array() );
+				if ( isset( $cache_data['total_cores']['data'] ) ) {
+					$api_data = $cache_data['total_cores']['data'];
+				} else {
+					wp_send_json_error( $api_data->get_error_message() );
+				}
 			}
 			if ( isset( $api_data['data']['total_cores'] ) && is_numeric( $api_data['data']['total_cores'] ) ) {
 				$value = $api_data['data']['total_cores'];
@@ -71,7 +89,13 @@ function fluxdata_ajax_handler() {
 		case 'totalram':
 			$api_data = fluxdata_get_total_ram();
 			if ( is_wp_error( $api_data ) ) {
-				wp_send_json_error( $api_data->get_error_message() );
+				// Try to get cached data directly from options on error
+				$cache_data = get_option( 'fluxdata_cache', array() );
+				if ( isset( $cache_data['total_ram']['data'] ) ) {
+					$api_data = $cache_data['total_ram']['data'];
+				} else {
+					wp_send_json_error( $api_data->get_error_message() );
+				}
 			}
 			if ( isset( $api_data['data']['total_ram'] ) && is_numeric( $api_data['data']['total_ram'] ) ) {
 				$value = $api_data['data']['total_ram'];
@@ -82,7 +106,13 @@ function fluxdata_ajax_handler() {
 		case 'totalssd':
 			$api_data = fluxdata_get_total_ssd();
 			if ( is_wp_error( $api_data ) ) {
-				wp_send_json_error( $api_data->get_error_message() );
+				// Try to get cached data directly from options on error
+				$cache_data = get_option( 'fluxdata_cache', array() );
+				if ( isset( $cache_data['total_ssd']['data'] ) ) {
+					$api_data = $cache_data['total_ssd']['data'];
+				} else {
+					wp_send_json_error( $api_data->get_error_message() );
+				}
 			}
 			if ( isset( $api_data['data']['total_ssd'] ) && is_numeric( $api_data['data']['total_ssd'] ) ) {
 				$value = $api_data['data']['total_ssd'];
@@ -101,9 +131,91 @@ function fluxdata_ajax_handler() {
 	wp_send_json_success( $data );
 }
 
+/**
+ * AJAX handler for cached FluxData fallback
+ */
+function fluxdata_cached_ajax_handler() {
+	// Verify nonce for security
+	if ( ! wp_verify_nonce( $_POST['nonce'], 'fluxdata_nonce' ) ) {
+		wp_die( 'Security check failed' );
+	}
+	
+	$type = sanitize_text_field( $_POST['type'] );
+	$human_readable = isset( $_POST['human_readable'] ) && $_POST['human_readable'] === 'true';
+	
+	// Get cached data directly from options
+	$cache_data = get_option( 'fluxdata_cache', array() );
+	
+	$cache_key_map = array(
+		'nodecount' => 'node_count',
+		'runningapps' => 'running_apps',
+		'totalcores' => 'total_cores',
+		'totalram' => 'total_ram',
+		'totalssd' => 'total_ssd'
+	);
+	
+	if ( ! isset( $cache_key_map[ $type ] ) ) {
+		wp_send_json_error( 'Invalid data type' );
+	}
+	
+	$cache_key = $cache_key_map[ $type ];
+	
+	if ( ! isset( $cache_data[ $cache_key ]['data'] ) ) {
+		wp_send_json_error( 'No cached data available' );
+	}
+	
+	$api_data = $cache_data[ $cache_key ]['data'];
+	$data = null;
+	
+	switch ( $type ) {
+		case 'nodecount':
+			if ( isset( $api_data['data']['total'] ) && is_numeric( $api_data['data']['total'] ) ) {
+				$value = $api_data['data']['total'];
+				$data = $human_readable ? fluxdata_format_number( $value ) : number_format( $value );
+			}
+			break;
+			
+		case 'runningapps':
+			if ( isset( $api_data['data'] ) && is_array( $api_data['data'] ) ) {
+				$value = count( $api_data['data'] );
+				$data = $human_readable ? fluxdata_format_number( $value ) : number_format( $value );
+			}
+			break;
+			
+		case 'totalcores':
+			if ( isset( $api_data['data']['total_cores'] ) && is_numeric( $api_data['data']['total_cores'] ) ) {
+				$value = $api_data['data']['total_cores'];
+				$data = $human_readable ? fluxdata_format_number( $value ) : number_format( $value );
+			}
+			break;
+			
+		case 'totalram':
+			if ( isset( $api_data['data']['total_ram'] ) && is_numeric( $api_data['data']['total_ram'] ) ) {
+				$value = $api_data['data']['total_ram'];
+				$data = $human_readable ? fluxdata_format_ram( $value, true ) : number_format( $value ) . ' GB';
+			}
+			break;
+			
+		case 'totalssd':
+			if ( isset( $api_data['data']['total_ssd'] ) && is_numeric( $api_data['data']['total_ssd'] ) ) {
+				$value = $api_data['data']['total_ssd'];
+				$data = $human_readable ? fluxdata_format_ssd( $value ) : number_format( $value ) . ' GB';
+			}
+			break;
+	}
+	
+	if ( $data === null ) {
+		wp_send_json_error( 'Cached data not available or invalid' );
+	}
+	
+	wp_send_json_success( $data );
+}
+
 // Register AJAX handlers
 add_action( 'wp_ajax_fluxdata_get', 'fluxdata_ajax_handler' );
 add_action( 'wp_ajax_nopriv_fluxdata_get', 'fluxdata_ajax_handler' );
+add_action( 'wp_ajax_fluxdata_get_cached', 'fluxdata_cached_ajax_handler' );
+add_action( 'wp_ajax_nopriv_fluxdata_get_cached', 'fluxdata_cached_ajax_handler' );
 
 /**
  * Enqueue scripts and localize AJAX data

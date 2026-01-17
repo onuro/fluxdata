@@ -12,6 +12,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// Define unified cache duration for all FluxData functions
+if ( ! defined( 'FLUXDATA_CACHE_DURATION' ) ) {
+	define( 'FLUXDATA_CACHE_DURATION', 10 * MINUTE_IN_SECONDS ); // 10 minutes
+}
+
 /**
  * Format SSD in GB to PB, TB, or GB for human readable display
  *
@@ -50,17 +55,10 @@ function fluxdata_get_total_ssd() {
 	// Increase memory limit for processing large API response
 	ini_set( 'memory_limit', '512M' );
 	
-	$cache_key = 'fluxdata_total_ssd_v2';
-	
-	// Try to get cached data with Redis compatibility check
-	try {
-		$cached_data = get_transient( $cache_key );
-		if ( false !== $cached_data && is_array( $cached_data ) && isset( $cached_data['status'] ) ) {
-			return $cached_data;
-		}
-	} catch ( Exception $e ) {
-		error_log( 'FluxData Cache Error (SSD): ' . $e->getMessage() );
-		// Continue without cache
+	// Try to get cached data using Options API
+	$cached_data = fluxdata_get_cache( 'total_ssd', FLUXDATA_CACHE_DURATION );
+	if ( $cached_data !== false && is_array( $cached_data ) && isset( $cached_data['status'] ) ) {
+		return $cached_data;
 	}
 	
 	$response = wp_remote_get( 'https://stats.runonflux.io/fluxinfo?projection=tier,benchmark', array(
@@ -72,12 +70,18 @@ function fluxdata_get_total_ssd() {
 	
 	if ( is_wp_error( $response ) ) {
 		error_log( 'FluxData API Error (SSD): ' . $response->get_error_message() );
+		
+
+		
 		return new WP_Error( 'api_error', $response->get_error_message(), array( 'status' => 503 ) );
 	}
 	
 	$http_code = wp_remote_retrieve_response_code( $response );
 	if ( 200 !== $http_code ) {
 		error_log( 'FluxData HTTP Error (SSD): ' . $http_code );
+		
+
+		
 		return new WP_Error( 'api_error', sprintf( __( 'HTTP error: %d', 'fluxdata' ), $http_code ), array( 'status' => 503 ) );
 	}
 	
@@ -137,16 +141,8 @@ function fluxdata_get_total_ssd() {
 		),
 	);
 	
-	// Cache for 10 minutes with Redis-safe serialization
-	try {
-		$cache_success = set_transient( $cache_key, $result, 60 * MINUTE_IN_SECONDS );
-		if ( ! $cache_success ) {
-			error_log( 'FluxData Cache Warning (SSD): Failed to cache total SSD data' );
-		}
-	} catch ( Exception $e ) {
-		error_log( 'FluxData Cache Error (SSD): Failed to cache - ' . $e->getMessage() );
-		// Continue without caching
-	}
+	// Cache the result using Options API
+	fluxdata_set_cache( 'total_ssd', $result );
 
 	return $result;
 }
@@ -209,10 +205,9 @@ function fluxdata_format_ram( $ram_gb, $human_readable = false ) {
  * @return array|WP_Error
  */
 function fluxdata_get_node_count() {
-	$cache_key = 'fluxdata_node_count';
-	$cached_data = get_transient( $cache_key );
-	
-	if ( false !== $cached_data ) {
+	// Try to get cached data using Options API
+	$cached_data = fluxdata_get_cache( 'node_count', FLUXDATA_CACHE_DURATION );
+	if ( $cached_data !== false && is_array( $cached_data ) && isset( $cached_data['status'] ) ) {
 		return $cached_data;
 	}
 	
@@ -224,6 +219,8 @@ function fluxdata_get_node_count() {
 	) );
 	
 	if ( is_wp_error( $response ) ) {
+
+		
 		return new WP_Error( 'api_error', $response->get_error_message(), array( 'status' => 503 ) );
 	}
 	
@@ -231,16 +228,20 @@ function fluxdata_get_node_count() {
 	$data = json_decode( $body, true );
 	
 	if ( ! $data || ! isset( $data['status'] ) || 'success' !== $data['status'] ) {
+
+		
 		return new WP_Error( 'api_error', __( 'Failed to fetch node count data', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
 	if ( ! isset( $data['data']['total'] ) || ! is_numeric( $data['data']['total'] ) ) {
+
+		
 		return new WP_Error( 'api_error', __( 'Invalid node count data format', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
-	// Cache for 5 minutes
-	set_transient( $cache_key, $data, 60 * MINUTE_IN_SECONDS );
-	
+	// Cache the result using Options API
+	fluxdata_set_cache( 'node_count', $data );
+
 	return $data;
 }
 
@@ -250,10 +251,9 @@ function fluxdata_get_node_count() {
  * @return array|WP_Error
  */
 function fluxdata_get_running_apps_count() {
-	$cache_key = 'fluxdata_running_apps';
-	$cached_data = get_transient( $cache_key );
-	
-	if ( false !== $cached_data ) {
+	// Try to get cached data using Options API
+	$cached_data = fluxdata_get_cache( 'running_apps', FLUXDATA_CACHE_DURATION );
+	if ( $cached_data !== false && is_array( $cached_data ) && isset( $cached_data['status'] ) ) {
 		return $cached_data;
 	}
 	
@@ -265,6 +265,8 @@ function fluxdata_get_running_apps_count() {
 	) );
 	
 	if ( is_wp_error( $response ) ) {
+
+		
 		return new WP_Error( 'api_error', $response->get_error_message(), array( 'status' => 503 ) );
 	}
 	
@@ -272,16 +274,20 @@ function fluxdata_get_running_apps_count() {
 	$data = json_decode( $body, true );
 	
 	if ( ! $data || ! isset( $data['status'] ) || 'success' !== $data['status'] ) {
+
+		
 		return new WP_Error( 'api_error', __( 'Failed to fetch running apps data', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
 	if ( ! isset( $data['data'] ) || ! is_array( $data['data'] ) ) {
+
+		
 		return new WP_Error( 'api_error', __( 'Invalid running apps data format', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
-	// Cache for 10 minutes
-	set_transient( $cache_key, $data, 60 * MINUTE_IN_SECONDS );
-	
+	// Cache the result using Options API
+	fluxdata_set_cache( 'running_apps', $data );
+
 	return $data;
 }
 
@@ -295,17 +301,10 @@ function fluxdata_get_total_cores() {
 	// Increase memory limit for processing large API response
 	ini_set( 'memory_limit', '512M' );
 	
-	$cache_key = 'fluxdata_total_cores_v2';
-	
-	// Try to get cached data with Redis compatibility check
-	try {
-		$cached_data = get_transient( $cache_key );
-		if ( false !== $cached_data && is_array( $cached_data ) && isset( $cached_data['status'] ) ) {
-			return $cached_data;
-		}
-	} catch ( Exception $e ) {
-		error_log( 'FluxData Cache Error (Cores): ' . $e->getMessage() );
-		// Continue without cache
+	// Try to get cached data using Options API
+	$cached_data = fluxdata_get_cache( 'total_cores', FLUXDATA_CACHE_DURATION );
+	if ( $cached_data !== false && is_array( $cached_data ) && isset( $cached_data['status'] ) ) {
+		return $cached_data;
 	}
 	
 	$response = wp_remote_get( 'https://stats.runonflux.io/fluxinfo?projection=tier,benchmark', array(
@@ -317,12 +316,18 @@ function fluxdata_get_total_cores() {
 	
 	if ( is_wp_error( $response ) ) {
 		error_log( 'FluxData API Error (Cores): ' . $response->get_error_message() );
+		
+
+		
 		return new WP_Error( 'api_error', $response->get_error_message(), array( 'status' => 503 ) );
 	}
 	
 	$http_code = wp_remote_retrieve_response_code( $response );
 	if ( 200 !== $http_code ) {
 		error_log( 'FluxData HTTP Error (Cores): ' . $http_code );
+		
+
+		
 		return new WP_Error( 'api_error', sprintf( __( 'HTTP error: %d', 'fluxdata' ), $http_code ), array( 'status' => 503 ) );
 	}
 	
@@ -331,11 +336,17 @@ function fluxdata_get_total_cores() {
 	
 	if ( json_last_error() !== JSON_ERROR_NONE ) {
 		error_log( 'FluxData JSON Error (Cores): ' . json_last_error_msg() );
+		
+
+		
 		return new WP_Error( 'api_error', __( 'Invalid JSON response', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
 	if ( ! $data || ! isset( $data['status'] ) || 'success' !== $data['status'] ) {
 		error_log( 'FluxData API Response Error (Cores): Invalid status or data structure' );
+		
+
+		
 		return new WP_Error( 'api_error', __( 'Failed to fetch total cores data', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
@@ -382,16 +393,8 @@ function fluxdata_get_total_cores() {
 		),
 	);
 	
-	// Cache for 10 minutes with Redis-safe serialization
-	try {
-		$cache_success = set_transient( $cache_key, $result, 60 * MINUTE_IN_SECONDS );
-		if ( ! $cache_success ) {
-			error_log( 'FluxData Cache Warning (Cores): Failed to cache total cores data' );
-		}
-	} catch ( Exception $e ) {
-		error_log( 'FluxData Cache Error (Cores): Failed to cache - ' . $e->getMessage() );
-		// Continue without caching
-	}
+	// Cache the result using Options API
+	fluxdata_set_cache( 'total_cores', $result );
 
 	return $result;
 }
@@ -406,17 +409,10 @@ function fluxdata_get_total_ram() {
 	// Increase memory limit for processing large API response
 	ini_set( 'memory_limit', '512M' );
 	
-	$cache_key = 'fluxdata_total_ram_v2';
-	
-	// Try to get cached data with Redis compatibility check
-	try {
-		$cached_data = get_transient( $cache_key );
-		if ( false !== $cached_data && is_array( $cached_data ) && isset( $cached_data['status'] ) ) {
-			return $cached_data;
-		}
-	} catch ( Exception $e ) {
-		error_log( 'FluxData Cache Error (RAM): ' . $e->getMessage() );
-		// Continue without cache
+	// Try to get cached data using Options API
+	$cached_data = fluxdata_get_cache( 'total_ram', FLUXDATA_CACHE_DURATION );
+	if ( $cached_data !== false && is_array( $cached_data ) && isset( $cached_data['status'] ) ) {
+		return $cached_data;
 	}
 	
 	$response = wp_remote_get( 'https://stats.runonflux.io/fluxinfo?projection=tier,benchmark', array(
@@ -428,12 +424,18 @@ function fluxdata_get_total_ram() {
 	
 	if ( is_wp_error( $response ) ) {
 		error_log( 'FluxData API Error (RAM): ' . $response->get_error_message() );
+		
+
+		
 		return new WP_Error( 'api_error', $response->get_error_message(), array( 'status' => 503 ) );
 	}
 	
 	$http_code = wp_remote_retrieve_response_code( $response );
 	if ( 200 !== $http_code ) {
 		error_log( 'FluxData HTTP Error (RAM): ' . $http_code );
+		
+
+		
 		return new WP_Error( 'api_error', sprintf( __( 'HTTP error: %d', 'fluxdata' ), $http_code ), array( 'status' => 503 ) );
 	}
 	
@@ -442,16 +444,25 @@ function fluxdata_get_total_ram() {
 	
 	if ( json_last_error() !== JSON_ERROR_NONE ) {
 		error_log( 'FluxData JSON Error (RAM): ' . json_last_error_msg() );
+		
+
+		
 		return new WP_Error( 'api_error', __( 'Invalid JSON response', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
 	if ( ! $data || ! isset( $data['status'] ) || 'success' !== $data['status'] ) {
 		error_log( 'FluxData API Response Error (RAM): Invalid status or data structure' );
+		
+
+		
 		return new WP_Error( 'api_error', __( 'Failed to fetch total RAM data', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
 	if ( ! isset( $data['data'] ) || ! is_array( $data['data'] ) ) {
 		error_log( 'FluxData Data Format Error (RAM): Missing or invalid data array' );
+		
+
+		
 		return new WP_Error( 'api_error', __( 'Invalid total RAM data format', 'fluxdata' ), array( 'status' => 503 ) );
 	}
 	
@@ -493,16 +504,64 @@ function fluxdata_get_total_ram() {
 		),
 	);
 	
-	// Cache for 10 minutes with Redis-safe serialization
-	try {
-		$cache_success = set_transient( $cache_key, $result, 60 * MINUTE_IN_SECONDS );
-		if ( ! $cache_success ) {
-			error_log( 'FluxData Cache Warning (RAM): Failed to cache total RAM data' );
-		}
-	} catch ( Exception $e ) {
-		error_log( 'FluxData Cache Error (RAM): Failed to cache - ' . $e->getMessage() );
-		// Continue without caching
-	}
+	// Cache the result using Options API
+	fluxdata_set_cache( 'total_ram', $result );
 
 	return $result;
+}
+
+/**
+ * Centralized cache management using WordPress Options API
+ * All FluxData cache is stored in a single option: 'fluxdata_cache'
+ */
+
+/**
+ * Get cached data from centralized cache
+ *
+ * @param string $cache_key The cache key to retrieve
+ * @param int $duration Cache duration in seconds
+ * @return mixed|false Returns cached data or false if not found/expired
+ */
+function fluxdata_get_cache( $cache_key, $duration ) {
+	$cache_data = get_option( 'fluxdata_cache', array() );
+	
+	if ( ! isset( $cache_data[ $cache_key ] ) ) {
+		return false;
+	}
+	
+	$cached_item = $cache_data[ $cache_key ];
+	
+	// Check if cache has expired
+	if ( ! isset( $cached_item['timestamp'] ) || ( time() - $cached_item['timestamp'] ) > $duration ) {
+		return false;
+	}
+	
+	return isset( $cached_item['data'] ) ? $cached_item['data'] : false;
+}
+
+/**
+ * Set cached data in centralized cache
+ *
+ * @param string $cache_key The cache key to store
+ * @param mixed $data The data to cache
+ * @return bool True on success, false on failure
+ */
+function fluxdata_set_cache( $cache_key, $data ) {
+	$cache_data = get_option( 'fluxdata_cache', array() );
+	
+	// Add new cache entry
+	$cache_data[ $cache_key ] = array(
+		'data' => $data,
+		'timestamp' => time()
+	);
+	
+	// Clean up old cache entries (older than 1 hour)
+	$current_time = time();
+	foreach ( $cache_data as $key => $item ) {
+		if ( isset( $item['timestamp'] ) && ( $current_time - $item['timestamp'] ) > 3600 ) {
+			unset( $cache_data[ $key ] );
+		}
+	}
+	
+	return update_option( 'fluxdata_cache', $cache_data );
 }
